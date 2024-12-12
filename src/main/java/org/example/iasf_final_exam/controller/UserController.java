@@ -15,66 +15,62 @@ import org.springframework.web.bind.annotation.ModelAttribute;  // For @ModelAtt
 import java.util.List;
 
 @Controller
-@RequestMapping("/users")
+@RequestMapping("/")
 public class UserController {
 
     @Autowired
     private UserService userService;
 
+    // Default route (list + create/edit form)
     @GetMapping
-    public String listUsers(Model model) {
-        model.addAttribute("users", userService.getAllUsers());
-        return "list";
+    public String index(Model model) {
+        model.addAttribute("users", userService.getAllUsers()); // List of users
+        model.addAttribute("user", new User()); // Empty user object for the form
+        return "index"; // Combined view
     }
 
-    @GetMapping("/add")
-    public String showAddForm(Model model) {
-        model.addAttribute("user", new User());
-        return "add";
-    }
-
-    @PostMapping("/add")
+    // Save user (create or update)
+    @PostMapping
     public String saveUser(@Valid @ModelAttribute User user, BindingResult result, Model model) {
-        if (userService.isUsernameTaken(user.getName())) {
+        if (user.getId() == null && userService.isUsernameTaken(user.getName())) {
             result.rejectValue("name", "error.name", "Username is already taken");
-            return "add"; // Return to the form with an error message
         }
+
         if (result.hasErrors()) {
-            return "add";
+            // Return the form with errors and the list
+            model.addAttribute("users", userService.getAllUsers());
+            return "index";
         }
-        userService.saveUser(user);
-        return "redirect:/users";
+
+        userService.saveUser(user); // Save user (create or update)
+        return "redirect:/"; // Redirect to avoid duplicate submissions
     }
 
+    // Edit user (populate the form with existing user data)
     @GetMapping("/edit/{id}")
-    public String showEditForm(@PathVariable Long id, Model model) {
+    public String editUser(@PathVariable Long id, Model model) {
         User user = userService.getUserById(id);
         if (user != null) {
-            model.addAttribute("user", user);
-            return "edit";
+            model.addAttribute("user", user); // Populate form with existing user
+        } else {
+            model.addAttribute("user", new User()); // Fallback to empty form
         }
-        return "redirect:/users";
+        model.addAttribute("users", userService.getAllUsers()); // Populate the list
+        return "index"; // Combined view
     }
 
-    @PostMapping("/edit/{id}")
-    public String updateUser(@PathVariable Long id, @Valid @ModelAttribute User user, BindingResult result) {
-        if (result.hasErrors()) {
-            return "edit";
-        }
-        user.setId(id);
-        userService.saveUser(user);
-        return "redirect:/users";
-    }
-
+    // Delete user
     @GetMapping("/delete/{id}")
     public String deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
-        return "redirect:/users";
+        return "redirect:/"; // Redirect to refresh the list
     }
 
+    // Search users
     @GetMapping("/search")
     public String searchUsers(@RequestParam String search, Model model) {
-        model.addAttribute("users", userService.searchUsersByName(search));
-        return "list";
+        model.addAttribute("users", userService.searchUsersByName(search)); // Filtered list
+        model.addAttribute("user", new User()); // Empty form
+        return "index"; // Combined view
     }
 }
